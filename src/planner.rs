@@ -111,8 +111,10 @@ mod tests {
         let moves = plan_moves(&entries, 20);
 
         let destinations: Vec<_> = moves.iter().map(|m| m.to.clone()).collect();
-        assert!(destinations.contains(&PathBuf::from("1010.cpp"))
-            || destinations.contains(&PathBuf::from("1010_conflict1.cpp")));
+        assert!(
+            destinations.contains(&PathBuf::from("1010.cpp"))
+                || destinations.contains(&PathBuf::from("1010_conflict1.cpp"))
+        );
     }
 
     #[test]

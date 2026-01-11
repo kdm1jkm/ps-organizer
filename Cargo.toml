@@ -1,7 +1,9 @@
 [package]
-name = "ps_organizer"
-version = "0.1.0"
+name = "ps-organizer"
+version = "1.1.0"
 edition = "2024"
+description = "A command-line tool to organize PS source files."
+license = "MIT"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

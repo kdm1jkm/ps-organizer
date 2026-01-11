@@ -190,8 +190,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "ps_organizer"
-version = "0.1.0"
+name = "ps-organizer"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "clap",

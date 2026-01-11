@@ -43,7 +43,7 @@ fn integration_organize_needs_grouping() {
     ps_organizer::executor::execute_moves(root, &moves, false).unwrap();
 
     assert!(!root.join("1001.cpp").exists());
-    
+
     let subfolders: Vec<_> = fs::read_dir(root)
         .unwrap()
         .filter_map(|e| e.ok())
@@ -66,10 +66,7 @@ fn integration_etc_folder_for_non_matching() {
 
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
 
-    let etc_moves: Vec<_> = moves
-        .iter()
-        .filter(|m| m.to.starts_with("etc"))
-        .collect();
+    let etc_moves: Vec<_> = moves.iter().filter(|m| m.to.starts_with("etc")).collect();
     assert_eq!(etc_moves.len(), 2);
 }
 
