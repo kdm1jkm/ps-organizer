@@ -1,6 +1,10 @@
+//! 파일 그룹핑 알고리즘.
+//!
+//! 문제 번호 분포를 분석하여 적절한 폴더 구조를 계산합니다.
+
 use std::collections::HashMap;
 
-fn find_largest_unit(max_num: u32) -> u32 {
+const fn find_largest_unit(max_num: u32) -> u32 {
     if max_num == 0 {
         return 10;
     }
@@ -11,13 +15,9 @@ fn find_largest_unit(max_num: u32) -> u32 {
     unit
 }
 
-fn next_unit(current_unit: u32, threshold: usize) -> u32 {
+const fn next_unit(current_unit: u32, threshold: u32) -> u32 {
     let next = current_unit / 10;
-    if next <= threshold as u32 {
-        threshold as u32
-    } else {
-        next
-    }
+    if next <= threshold { threshold } else { next }
 }
 
 fn group_by_unit(numbers: &[u32], unit: u32) -> HashMap<u32, Vec<u32>> {
@@ -29,7 +29,7 @@ fn group_by_unit(numbers: &[u32], unit: u32) -> HashMap<u32, Vec<u32>> {
     groups
 }
 
-fn digit_count(n: u32) -> usize {
+const fn digit_count(n: u32) -> usize {
     if n == 0 {
         return 1;
     }
@@ -43,9 +43,13 @@ fn digit_count(n: u32) -> usize {
 }
 
 fn format_folder_name(group_start: u32, width: usize) -> String {
-    format!("{:0>width$}", group_start, width = width)
+    format!("{group_start:0>width$}")
 }
 
+/// 문제 번호 목록을 분석하여 각 번호의 목적지 폴더를 결정합니다.
+///
+/// `threshold` 이하의 파일 수는 그룹핑하지 않고 평탄하게 유지합니다.
+/// 파일이 많으면 10, 100, 1000 등의 단위로 자동 그룹핑합니다.
 pub fn compute_structure(
     numbers: &[u32],
     threshold: usize,
@@ -61,7 +65,9 @@ pub fn compute_structure(
     let max_num = numbers.iter().max().copied().unwrap_or(0);
     let unit = find_largest_unit(max_num);
 
-    compute_structure_with_unit(numbers, threshold, current_path, unit)
+    #[allow(clippy::cast_possible_truncation)]
+    let threshold_u32 = threshold as u32;
+    compute_structure_with_unit(numbers, threshold, current_path, unit, threshold_u32)
 }
 
 fn compute_structure_with_unit(
@@ -69,6 +75,7 @@ fn compute_structure_with_unit(
     threshold: usize,
     current_path: &str,
     unit: u32,
+    threshold_u32: u32,
 ) -> HashMap<u32, String> {
     if numbers.len() <= threshold {
         return numbers
@@ -108,12 +115,18 @@ fn compute_structure_with_unit(
             let new_path = if current_path.is_empty() {
                 folder_name
             } else {
-                format!("{}/{}", current_path, folder_name)
+                format!("{current_path}/{folder_name}")
             };
 
-            let next = next_unit(unit, threshold);
+            let next = next_unit(unit, threshold_u32);
             if next < unit {
-                let sub = compute_structure_with_unit(&group_nums, threshold, &new_path, next);
+                let sub = compute_structure_with_unit(
+                    &group_nums,
+                    threshold,
+                    &new_path,
+                    next,
+                    threshold_u32,
+                );
                 result.extend(sub);
             } else {
                 for num in group_nums {
@@ -145,8 +158,8 @@ mod tests {
         assert_eq!(find_largest_unit(9999), 1000);
         assert_eq!(find_largest_unit(10000), 10000);
         assert_eq!(find_largest_unit(45000), 10000);
-        assert_eq!(find_largest_unit(100000), 100000);
-        assert_eq!(find_largest_unit(1234567), 1000000);
+        assert_eq!(find_largest_unit(100_000), 100_000);
+        assert_eq!(find_largest_unit(1_234_567), 1_000_000);
     }
 
     #[test]
@@ -182,7 +195,7 @@ mod tests {
         let result = compute_structure(&numbers, 20, "");
 
         for &num in &numbers {
-            assert_eq!(result.get(&num), Some(&"".to_string()));
+            assert_eq!(result.get(&num), Some(&String::new()));
         }
     }
 

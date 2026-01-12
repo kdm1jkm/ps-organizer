@@ -1,9 +1,12 @@
+//! 이동 계획 실행 및 정리.
+
 use crate::types::MoveOperation;
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
+/// 이동 계획을 화면에 출력합니다 (dry-run 모드용).
 pub fn print_plan(moves: &[MoveOperation], verbose: bool) {
     if moves.is_empty() {
         println!("변경 사항 없음. 모든 파일이 이미 올바른 위치에 있습니다.");
@@ -32,6 +35,11 @@ pub fn print_plan(moves: &[MoveOperation], verbose: bool) {
     }
 }
 
+/// 이동 계획을 실제로 실행합니다.
+///
+/// # Errors
+///
+/// 폴더 생성이나 파일 이동에 실패하면 에러를 반환합니다.
 pub fn execute_moves(root: &Path, moves: &[MoveOperation], verbose: bool) -> Result<()> {
     if moves.is_empty() {
         println!("변경 사항 없음.");
@@ -44,13 +52,13 @@ pub fn execute_moves(root: &Path, moves: &[MoveOperation], verbose: bool) -> Res
         let from_abs = root.join(&op.from);
         let to_abs = root.join(&op.to);
 
-        if let Some(parent) = to_abs.parent() {
-            if !parent.exists() {
-                fs::create_dir_all(parent)
-                    .with_context(|| format!("폴더 생성 실패: {}", parent.display()))?;
-                if verbose {
-                    println!("  [폴더 생성] {}", parent.display());
-                }
+        if let Some(parent) = to_abs.parent()
+            && !parent.exists()
+        {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("폴더 생성 실패: {}", parent.display()))?;
+            if verbose {
+                println!("  [폴더 생성] {}", parent.display());
             }
         }
 
@@ -71,6 +79,11 @@ pub fn execute_moves(root: &Path, moves: &[MoveOperation], verbose: bool) -> Res
     Ok(())
 }
 
+/// 빈 디렉토리를 재귀적으로 삭제합니다.
+///
+/// # Errors
+///
+/// 디렉토리 읽기나 삭제에 실패하면 에러를 반환합니다.
 pub fn cleanup_empty_dirs(root: &Path, verbose: bool) -> Result<()> {
     cleanup_empty_dirs_recursive(root, root, verbose)
 }
@@ -82,7 +95,7 @@ fn cleanup_empty_dirs_recursive(root: &Path, current: &Path, verbose: bool) -> R
 
     let entries: Vec<_> = fs::read_dir(current)
         .with_context(|| format!("디렉토리 읽기 실패: {}", current.display()))?
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .collect();
 
     for entry in &entries {

@@ -1,27 +1,37 @@
+//! 디렉토리 스캔 및 문제 번호 추출.
+
 use crate::types::FileEntry;
-use std::path::PathBuf;
+use std::path::Path;
 use walkdir::WalkDir;
 
 const VALID_EXTENSIONS: [&str; 3] = ["cpp", "c", "py"];
 
+/// 파일명에서 문제 번호를 추출합니다.
+///
+/// `숫자.확장자` 형식의 파일명만 인식합니다 (예: `1010.cpp` → `Some(1010)`).
+/// 파일명에 숫자 외의 문자가 포함되거나 지원하지 않는 확장자면 `None`을 반환합니다.
 pub fn extract_problem_number(filename: &str) -> Option<u32> {
     for ext in VALID_EXTENSIONS {
-        let suffix = format!(".{}", ext);
-        if let Some(stem) = filename.strip_suffix(&suffix) {
-            if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_digit()) {
-                return stem.parse::<u32>().ok();
-            }
+        let suffix = format!(".{ext}");
+        if let Some(stem) = filename.strip_suffix(&suffix)
+            && !stem.is_empty()
+            && stem.chars().all(|c| c.is_ascii_digit())
+        {
+            return stem.parse::<u32>().ok();
         }
     }
     None
 }
 
-pub fn scan_directory(root: &PathBuf) -> Vec<FileEntry> {
+/// 디렉토리를 재귀적으로 스캔하여 소스 파일 목록을 반환합니다.
+///
+/// `.cpp`, `.c`, `.py` 확장자를 가진 파일만 수집합니다.
+pub fn scan_directory(root: &Path) -> Vec<FileEntry> {
     let mut entries = Vec::new();
 
     for entry in WalkDir::new(root)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .filter(|e| e.file_type().is_file())
     {
         let path = entry.path();

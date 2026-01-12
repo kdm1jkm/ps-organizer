@@ -1,13 +1,7 @@
-mod cli;
-mod executor;
-mod grouper;
-mod planner;
-mod scanner;
-mod types;
-
 use anyhow::Result;
 use clap::Parser;
-use cli::Cli;
+use ps_organizer::cli::Cli;
+use ps_organizer::{executor, planner, scanner};
 
 fn main() -> Result<()> {
     let args = Cli::parse();

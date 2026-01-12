@@ -15,10 +15,10 @@ fn integration_organize_flat_files() {
     let root = temp.path();
 
     for i in 1001..=1010 {
-        create_test_file(root, &format!("{}.cpp", i));
+        create_test_file(root, &format!("{i}.cpp"));
     }
 
-    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let entries = ps_organizer::scanner::scan_directory(root);
     assert_eq!(entries.len(), 10);
 
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
@@ -31,10 +31,10 @@ fn integration_organize_needs_grouping() {
     let root = temp.path();
 
     for i in 1001..=1050 {
-        create_test_file(root, &format!("{}.cpp", i));
+        create_test_file(root, &format!("{i}.cpp"));
     }
 
-    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let entries = ps_organizer::scanner::scan_directory(root);
     assert_eq!(entries.len(), 50);
 
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
@@ -46,7 +46,7 @@ fn integration_organize_needs_grouping() {
 
     let subfolders: Vec<_> = fs::read_dir(root)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .filter(|e| e.path().is_dir())
         .collect();
     assert!(!subfolders.is_empty());
@@ -61,13 +61,12 @@ fn integration_etc_folder_for_non_matching() {
     create_test_file(root, "main.c");
     create_test_file(root, "1001.cpp");
 
-    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let entries = ps_organizer::scanner::scan_directory(root);
     assert_eq!(entries.len(), 3);
 
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
 
-    let etc_moves: Vec<_> = moves.iter().filter(|m| m.to.starts_with("etc")).collect();
-    assert_eq!(etc_moves.len(), 2);
+    assert_eq!(moves.iter().filter(|m| m.to.starts_with("etc")).count(), 2);
 }
 
 #[test]
@@ -78,7 +77,7 @@ fn integration_cleanup_empty_dirs() {
     fs::create_dir_all(root.join("old/nested")).unwrap();
     create_test_file(root, "old/nested/1001.cpp");
 
-    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let entries = ps_organizer::scanner::scan_directory(root);
     assert_eq!(entries.len(), 1);
 
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
@@ -96,7 +95,7 @@ fn integration_conflict_resolution() {
     create_test_file(root, "1001.cpp");
     create_test_file(root, "backup/1001.cpp");
 
-    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let entries = ps_organizer::scanner::scan_directory(root);
     assert_eq!(entries.len(), 2);
 
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
@@ -104,13 +103,8 @@ fn integration_conflict_resolution() {
 
     let cpp_files: Vec<_> = fs::read_dir(root)
         .unwrap()
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map(|ext| ext == "cpp")
-                .unwrap_or(false)
-        })
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "cpp"))
         .collect();
     assert_eq!(cpp_files.len(), 2);
 }
@@ -121,10 +115,10 @@ fn integration_already_organized() {
     let root = temp.path();
 
     for i in 1001..=1010 {
-        create_test_file(root, &format!("{}.cpp", i));
+        create_test_file(root, &format!("{i}.cpp"));
     }
 
-    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let entries = ps_organizer::scanner::scan_directory(root);
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
 
     assert!(moves.is_empty());
@@ -136,20 +130,20 @@ fn integration_nested_structure() {
     let root = temp.path();
 
     for i in 1000..=1100 {
-        create_test_file(root, &format!("{}.cpp", i));
+        create_test_file(root, &format!("{i}.cpp"));
     }
     for i in 30000..=30005 {
-        create_test_file(root, &format!("{}.cpp", i));
+        create_test_file(root, &format!("{i}.cpp"));
     }
 
-    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let entries = ps_organizer::scanner::scan_directory(root);
     let moves = ps_organizer::planner::plan_moves(&entries, 20);
 
     ps_organizer::executor::execute_moves(root, &moves, false).unwrap();
 
     let subfolders: Vec<_> = fs::read_dir(root)
         .unwrap()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .filter(|e| e.path().is_dir())
         .collect();
     assert!(!subfolders.is_empty());

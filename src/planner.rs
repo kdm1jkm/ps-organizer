@@ -1,17 +1,22 @@
+//! 이동 계획 생성.
+
 use crate::grouper::compute_structure;
 use crate::types::{FileEntry, MoveOperation};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+/// 파일명 충돌 시 새로운 이름을 생성합니다.
 pub fn resolve_conflict(filename: &str, conflict_num: u32) -> String {
-    if let Some(dot_pos) = filename.rfind('.') {
-        let (name, ext) = filename.split_at(dot_pos);
-        format!("{}_conflict{}{}", name, conflict_num, ext)
-    } else {
-        format!("{}_conflict{}", filename, conflict_num)
-    }
+    filename.rfind('.').map_or_else(
+        || format!("{filename}_conflict{conflict_num}"),
+        |dot_pos| {
+            let (name, ext) = filename.split_at(dot_pos);
+            format!("{name}_conflict{conflict_num}{ext}")
+        },
+    )
 }
 
+/// 파일 목록을 분석하여 이동 계획을 생성합니다.
 pub fn plan_moves(entries: &[FileEntry], threshold: usize) -> Vec<MoveOperation> {
     let numbers: Vec<u32> = entries.iter().filter_map(|e| e.problem_number).collect();
 
@@ -22,16 +27,16 @@ pub fn plan_moves(entries: &[FileEntry], threshold: usize) -> Vec<MoveOperation>
     let mut conflict_counts: HashMap<String, u32> = HashMap::new();
 
     for entry in entries {
-        let target_folder = match entry.problem_number {
-            Some(num) => structure.get(&num).cloned().unwrap_or_default(),
-            None => "etc".to_string(),
-        };
+        let target_folder = entry.problem_number.map_or_else(
+            || "etc".to_string(),
+            |num| structure.get(&num).cloned().unwrap_or_default(),
+        );
 
         let target_folder_path = PathBuf::from(&target_folder);
         let existing_files = target_files.entry(target_folder_path.clone()).or_default();
 
         let final_filename = if existing_files.contains(&entry.filename) {
-            let key = format!("{}/{}", target_folder, entry.filename);
+            let key = format!("{target_folder}/{}", entry.filename);
             let count = conflict_counts.entry(key).or_insert(0);
             *count += 1;
             resolve_conflict(&entry.filename, *count)
@@ -50,7 +55,7 @@ pub fn plan_moves(entries: &[FileEntry], threshold: usize) -> Vec<MoveOperation>
         moves.push(MoveOperation::new(entry.current_path.clone(), target_path));
     }
 
-    moves.into_iter().filter(|m| m.is_needed()).collect()
+    moves.into_iter().filter(MoveOperation::is_needed).collect()
 }
 
 #[cfg(test)]
@@ -121,9 +126,9 @@ mod tests {
     fn plan_moves_splits_when_over_threshold() {
         let entries: Vec<FileEntry> = (1001..=1050)
             .map(|n| FileEntry {
-                current_path: PathBuf::from(format!("{}.cpp", n)),
+                current_path: PathBuf::from(format!("{n}.cpp")),
                 problem_number: Some(n),
-                filename: format!("{}.cpp", n),
+                filename: format!("{n}.cpp"),
             })
             .collect();
 

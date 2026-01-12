@@ -1,9 +1,12 @@
 [package]
 name = "ps-organizer"
-version = "1.5.0"
+version = "1.5.1"
 edition = "2024"
-description = "A command-line tool to organize PS source files."
+description = "A command-line tool to organize PS (Problem Solving) source files by problem number."
 license = "MIT"
+readme = "README.md"
+keywords = ["ps", "organizer", "cli", "problem-solving"]
+categories = ["command-line-utilities", "filesystem"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -12,3 +15,8 @@ anyhow = "1"
 
 [dev-dependencies]
 tempfile = "3"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+must_use_candidate = "allow"
+module_name_repetitions = "allow"
