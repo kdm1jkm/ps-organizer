@@ -12,10 +12,14 @@ pub fn resolve_conflict(filename: &str, conflict_num: u32) -> String {
     }
 }
 
-pub fn plan_moves(entries: &[FileEntry], threshold: usize) -> Vec<MoveOperation> {
+pub fn plan_moves(
+    entries: &[FileEntry],
+    threshold: usize,
+    placeholder: char,
+) -> Vec<MoveOperation> {
     let numbers: Vec<u32> = entries.iter().filter_map(|e| e.problem_number).collect();
 
-    let structure = compute_structure(&numbers, threshold, "");
+    let structure = compute_structure(&numbers, threshold, "", placeholder);
 
     let mut moves = Vec::new();
     let mut target_files: HashMap<PathBuf, HashSet<String>> = HashMap::new();
@@ -76,7 +80,7 @@ mod tests {
             filename: "1010.cpp".to_string(),
         }];
 
-        let moves = plan_moves(&entries, 20);
+        let moves = plan_moves(&entries, 20, '_');
         assert!(moves.is_empty());
     }
 
@@ -88,7 +92,7 @@ mod tests {
             filename: "solution.cpp".to_string(),
         }];
 
-        let moves = plan_moves(&entries, 20);
+        let moves = plan_moves(&entries, 20, '_');
         assert_eq!(moves.len(), 1);
         assert_eq!(moves[0].to, PathBuf::from("etc/solution.cpp"));
     }
@@ -108,7 +112,7 @@ mod tests {
             },
         ];
 
-        let moves = plan_moves(&entries, 20);
+        let moves = plan_moves(&entries, 20, '_');
 
         let destinations: Vec<_> = moves.iter().map(|m| m.to.clone()).collect();
         assert!(
@@ -127,11 +131,11 @@ mod tests {
             })
             .collect();
 
-        let moves = plan_moves(&entries, 20);
+        let moves = plan_moves(&entries, 20, '_');
 
         assert!(!moves.is_empty());
         let sample_move = moves.iter().find(|m| m.from == PathBuf::from("1001.cpp"));
         assert!(sample_move.is_some());
-        assert!(sample_move.unwrap().to.to_string_lossy().contains("1000"));
+        assert!(sample_move.unwrap().to.to_string_lossy().contains("100_"));
     }
 }

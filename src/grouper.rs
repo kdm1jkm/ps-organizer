@@ -22,28 +22,36 @@ fn count_groups(numbers: &[u32], unit: u32) -> HashMap<u32, usize> {
     groups
 }
 
-fn calc_padding_width(group_starts: &[u32]) -> usize {
-    group_starts
-        .iter()
-        .map(|&n| {
-            if n == 0 {
-                1
-            } else {
-                (n as f64).log10().floor() as usize + 1
-            }
-        })
-        .max()
-        .unwrap_or(1)
+fn calc_total_width(group_starts: &[u32], unit: u32) -> usize {
+    let max_group = group_starts.iter().max().copied().unwrap_or(0);
+    let max_end = max_group + unit - 1;
+    if max_end == 0 {
+        1
+    } else {
+        (max_end as f64).log10().floor() as usize + 1
+    }
 }
 
-fn format_folder_name(group_start: u32, width: usize) -> String {
-    format!("{:0>width$}", group_start, width = width)
+fn format_folder_name(
+    group_start: u32,
+    unit: u32,
+    total_width: usize,
+    placeholder: char,
+) -> String {
+    let prefix = group_start / unit;
+    let trailing_count = (unit as f64).log10().floor() as usize;
+    let trailing: String = std::iter::repeat(placeholder)
+        .take(trailing_count)
+        .collect();
+    let base = format!("{}{}", prefix, trailing);
+    format!("{:0>width$}", base, width = total_width)
 }
 
 pub fn compute_structure(
     numbers: &[u32],
     threshold: usize,
     current_path: &str,
+    placeholder: char,
 ) -> HashMap<u32, String> {
     let mut result = HashMap::new();
 
@@ -63,10 +71,10 @@ pub fn compute_structure(
     }
 
     let group_starts: Vec<u32> = groups.keys().copied().collect();
-    let width = calc_padding_width(&group_starts);
+    let width = calc_total_width(&group_starts, unit);
 
     for (group_start, group_numbers) in groups {
-        let folder_name = format_folder_name(group_start, width);
+        let folder_name = format_folder_name(group_start, unit, width, placeholder);
         let group_folder = if current_path.is_empty() {
             folder_name
         } else {
@@ -74,7 +82,8 @@ pub fn compute_structure(
         };
 
         if group_numbers.len() > threshold {
-            let sub_structure = compute_structure(&group_numbers, threshold, &group_folder);
+            let sub_structure =
+                compute_structure(&group_numbers, threshold, &group_folder, placeholder);
             result.extend(sub_structure);
         } else {
             for &num in &group_numbers {
@@ -91,25 +100,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn padding_single_digit() {
-        assert_eq!(calc_padding_width(&[0, 10, 20]), 2);
+    fn format_folder_basic() {
+        assert_eq!(format_folder_name(1000, 1000, 4, '_'), "1___");
+        assert_eq!(format_folder_name(2000, 1000, 4, '_'), "2___");
     }
 
     #[test]
-    fn padding_mixed_digits() {
-        assert_eq!(calc_padding_width(&[10, 100, 1000]), 4);
+    fn format_folder_with_front_padding() {
+        assert_eq!(format_folder_name(1000, 1000, 5, '_'), "01___");
+        assert_eq!(format_folder_name(10000, 1000, 5, '_'), "10___");
     }
 
     #[test]
-    fn padding_large_numbers() {
-        assert_eq!(calc_padding_width(&[1000, 2000, 10000]), 5);
+    fn format_folder_unit_100() {
+        assert_eq!(format_folder_name(100, 100, 3, '_'), "1__");
+        assert_eq!(format_folder_name(200, 100, 3, '_'), "2__");
     }
 
     #[test]
-    fn format_with_padding() {
-        assert_eq!(format_folder_name(10, 4), "0010");
-        assert_eq!(format_folder_name(100, 4), "0100");
-        assert_eq!(format_folder_name(1000, 4), "1000");
+    fn format_folder_unit_10() {
+        assert_eq!(format_folder_name(10, 10, 2, '_'), "1_");
+        assert_eq!(format_folder_name(20, 10, 2, '_'), "2_");
+    }
+
+    #[test]
+    fn format_folder_with_x_placeholder() {
+        assert_eq!(format_folder_name(1000, 1000, 4, 'x'), "1xxx");
+        assert_eq!(format_folder_name(100, 100, 3, 'x'), "1xx");
+        assert_eq!(format_folder_name(10, 10, 2, 'x'), "1x");
+    }
+
+    #[test]
+    fn calc_width_for_groups() {
+        assert_eq!(calc_total_width(&[1000, 2000], 1000), 4);
+        assert_eq!(calc_total_width(&[1000, 9000], 1000), 4);
+        assert_eq!(calc_total_width(&[1000, 10000], 1000), 5);
+        assert_eq!(calc_total_width(&[10, 20, 90], 10), 2);
     }
 
     #[test]
@@ -127,7 +153,7 @@ mod tests {
     #[test]
     fn compute_structure_flat_when_under_threshold() {
         let numbers: Vec<u32> = vec![1001, 1002, 1003, 1004, 1005];
-        let result = compute_structure(&numbers, 20, "");
+        let result = compute_structure(&numbers, 20, "", '_');
 
         for &num in &numbers {
             assert_eq!(result.get(&num), Some(&"".to_string()));
@@ -135,51 +161,31 @@ mod tests {
     }
 
     #[test]
-    fn compute_structure_splits_with_padding() {
+    fn compute_structure_splits_with_placeholder() {
         let numbers: Vec<u32> = (1001..=1050).collect();
-        let result = compute_structure(&numbers, 20, "");
+        let result = compute_structure(&numbers, 20, "", '_');
 
         let path_1001 = result.get(&1001).unwrap();
         let path_1050 = result.get(&1050).unwrap();
 
-        assert!(path_1001.contains("1000"));
-        assert!(path_1050.contains("1050"));
+        assert!(path_1001.contains("100_"));
+        assert!(path_1050.contains("105_"));
         assert_ne!(path_1001, path_1050);
     }
 
     #[test]
-    fn compute_structure_multiple_groups_with_padding() {
-        let mut numbers: Vec<u32> = (1001..=1025).collect();
-        numbers.extend(2001..=2025);
-        let result = compute_structure(&numbers, 20, "");
+    fn compute_structure_with_x_placeholder() {
+        let numbers: Vec<u32> = (1001..=1050).collect();
+        let result = compute_structure(&numbers, 20, "", 'x');
 
         let path_1001 = result.get(&1001).unwrap();
-        let path_2001 = result.get(&2001).unwrap();
-
-        assert_eq!(path_1001.len(), path_2001.len());
+        assert!(path_1001.contains("100x"));
     }
 
     #[test]
-    fn compute_structure_nested_split_with_padding() {
-        let numbers: Vec<u32> = (1000..1100).collect();
-        let result = compute_structure(&numbers, 20, "");
-
-        let path_1005 = result.get(&1005).unwrap();
-        let path_1055 = result.get(&1055).unwrap();
-
-        assert!(path_1005.contains("1000"));
-
-        let parts_1005: Vec<&str> = path_1005.split('/').collect();
-        let parts_1055: Vec<&str> = path_1055.split('/').collect();
-        if parts_1005.len() > 1 && parts_1055.len() > 1 {
-            assert_eq!(parts_1005[1].len(), parts_1055[1].len());
-        }
-    }
-
-    #[test]
-    fn folders_sort_correctly() {
+    fn folders_sort_correctly_with_placeholder() {
         let numbers: Vec<u32> = vec![15, 105, 1005];
-        let result = compute_structure(&numbers, 1, "");
+        let result = compute_structure(&numbers, 1, "", '_');
 
         let mut folders: Vec<&String> = result.values().collect();
         folders.sort();

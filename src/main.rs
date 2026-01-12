@@ -17,6 +17,7 @@ fn main() -> Result<()> {
     if args.verbose {
         println!("대상 디렉토리: {}", root.display());
         println!("임계값: {}", args.threshold);
+        println!("Placeholder: '{}'", args.placeholder);
         println!("Dry-run: {}\n", args.dry_run);
     }
 
@@ -31,7 +32,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let moves = planner::plan_moves(&entries, args.threshold);
+    let moves = planner::plan_moves(&entries, args.threshold, args.placeholder);
 
     if args.dry_run {
         executor::print_plan(&moves, args.verbose);

@@ -21,7 +21,7 @@ fn integration_organize_flat_files() {
     let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
     assert_eq!(entries.len(), 10);
 
-    let moves = ps_organizer::planner::plan_moves(&entries, 20);
+    let moves = ps_organizer::planner::plan_moves(&entries, 20, '_');
     assert!(moves.is_empty());
 }
 
@@ -37,7 +37,7 @@ fn integration_organize_needs_grouping() {
     let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
     assert_eq!(entries.len(), 50);
 
-    let moves = ps_organizer::planner::plan_moves(&entries, 20);
+    let moves = ps_organizer::planner::plan_moves(&entries, 20, '_');
     assert!(!moves.is_empty());
 
     ps_organizer::executor::execute_moves(root, &moves, false).unwrap();
@@ -64,7 +64,7 @@ fn integration_etc_folder_for_non_matching() {
     let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
     assert_eq!(entries.len(), 3);
 
-    let moves = ps_organizer::planner::plan_moves(&entries, 20);
+    let moves = ps_organizer::planner::plan_moves(&entries, 20, '_');
 
     let etc_moves: Vec<_> = moves.iter().filter(|m| m.to.starts_with("etc")).collect();
     assert_eq!(etc_moves.len(), 2);
@@ -81,7 +81,7 @@ fn integration_cleanup_empty_dirs() {
     let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
     assert_eq!(entries.len(), 1);
 
-    let moves = ps_organizer::planner::plan_moves(&entries, 20);
+    let moves = ps_organizer::planner::plan_moves(&entries, 20, '_');
     ps_organizer::executor::execute_moves(root, &moves, false).unwrap();
     ps_organizer::executor::cleanup_empty_dirs(root, false).unwrap();
 
@@ -99,7 +99,7 @@ fn integration_conflict_resolution() {
     let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
     assert_eq!(entries.len(), 2);
 
-    let moves = ps_organizer::planner::plan_moves(&entries, 20);
+    let moves = ps_organizer::planner::plan_moves(&entries, 20, '_');
     ps_organizer::executor::execute_moves(root, &moves, false).unwrap();
 
     let cpp_files: Vec<_> = fs::read_dir(root)
@@ -125,7 +125,27 @@ fn integration_already_organized() {
     }
 
     let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
-    let moves = ps_organizer::planner::plan_moves(&entries, 20);
+    let moves = ps_organizer::planner::plan_moves(&entries, 20, '_');
 
     assert!(moves.is_empty());
+}
+
+#[test]
+fn integration_placeholder_x() {
+    let temp = TempDir::new().unwrap();
+    let root = temp.path();
+
+    for i in 1001..=1050 {
+        create_test_file(root, &format!("{}.cpp", i));
+    }
+
+    let entries = ps_organizer::scanner::scan_directory(&root.to_path_buf());
+    let moves = ps_organizer::planner::plan_moves(&entries, 20, 'x');
+
+    assert!(!moves.is_empty());
+    let sample = moves
+        .iter()
+        .find(|m| m.from.to_string_lossy().contains("1001"))
+        .unwrap();
+    assert!(sample.to.to_string_lossy().contains("x"));
 }
