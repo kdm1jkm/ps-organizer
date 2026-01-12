@@ -19,7 +19,7 @@ pub fn plan_moves(
 ) -> Vec<MoveOperation> {
     let numbers: Vec<u32> = entries.iter().filter_map(|e| e.problem_number).collect();
 
-    let structure = compute_structure(&numbers, threshold, "", placeholder);
+    let structure = compute_structure(&numbers, threshold, placeholder);
 
     let mut moves = Vec::new();
     let mut target_files: HashMap<PathBuf, HashSet<String>> = HashMap::new();
